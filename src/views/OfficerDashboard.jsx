@@ -31,7 +31,10 @@ import {
   BookOpen,
   Home,
   Building,
-  Receipt
+  Receipt,
+  Power,
+  ToggleRight,
+  ToggleLeft
 } from 'lucide-react';
 import { 
   DAILY_TASKS_OFFICER, 
@@ -267,42 +270,30 @@ export default function OfficerDashboard({
   };
 
   // ==========================================
-  // 2. CALENDAR & CUT-OFF EDIT WITH DATE PICKER
+  // 2. SCHOLARSHIP CUT-OFF ON/OFF SWITCH (สวิตช์เปิด-ปิดรับสมัครทุน)
   // ==========================================
-  const [calendarRounds, setCalendarRounds] = useState([...ACADEMIC_CALENDAR_EVENTS]);
-  const [editingRound, setEditingRound] = useState(null);
-  const [showAddRoundModal, setShowAddRoundModal] = useState(false);
-  const [newRoundForm, setNewRoundForm] = useState({
-    title: '',
-    startDate: '2026-10-01',
-    cutOffDate: '2026-10-15',
-    cutOffTime: '23:59',
-    type: 'cutoff',
-    isCutoff: true,
-    description: 'กำหนดเวลาตัดรอบส่งเอกสารและหลักฐานกิจกรรม'
+  const [isApplicationOpen, setIsApplicationOpen] = useState(true);
+  const [cutoffToggleLog, setCutoffToggleLog] = useState({
+    lastToggledAt: '15 ต.ค. 2567 23:59 น.',
+    toggledBy: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่ศูนย์ฯ)',
+    announcementNote: 'เปิดรับสมัครคำขอรับทุนการศึกษาและส่งหลักฐานกิจกรรมสะสมแต้ม รอบที่ 1/2567'
   });
 
-  const handleOpenEditRound = (round) => {
-    // parse date string or provide fallback
-    setEditingRound({
-      ...round,
-      startDate: '2026-10-01',
-      cutOffDate: '2026-10-15',
-      cutOffTime: '23:59',
-      isCutoff: round.isCutoff || false
+  const handleToggleApplicationStatus = () => {
+    const nextStatus = !isApplicationOpen;
+    setIsApplicationOpen(nextStatus);
+    const nowStr = new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    setCutoffToggleLog({
+      lastToggledAt: nowStr,
+      toggledBy: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่ศูนย์ฯ)',
+      announcementNote: nextStatus 
+        ? 'เปิดรับสมัครคำขอรับทุนการศึกษาและส่งเอกสารตามปกติ' 
+        : 'ปิดรับสมัครคำขอรับทุนการศึกษาชั่วคราว (Cut-off ปิดระบบรับเอกสาร)'
     });
-  };
-
-  const handleSaveRoundEdit = (e) => {
-    e.preventDefault();
-    if (!editingRound) return;
-    const formattedDate = `${editingRound.cutOffDate} (${editingRound.cutOffTime} น.)`;
-    setCalendarRounds(prev => prev.map(r => r.id === editingRound.id ? {
-      ...editingRound,
-      date: formattedDate
-    } : r));
-    setEditingRound(null);
-    alert(`บันทึกกำหนดเวลาใหม่สำหรับ "${editingRound.title}" เรียบร้อยแล้ว`);
+    alert(nextStatus 
+      ? '🟢 เปิดรับสมัครทุนการศึกษาแล้ว! นิสิตและผู้สมัครใหม่สามารถส่งคำขอและอัปโหลดเอกสารได้ตามปกติ' 
+      : '🔴 ปิดรับสมัครทุนการศึกษา (Cut-off) เรียบร้อยแล้ว! ระบบระงับการยื่นคำขอใหม่ชั่วคราวเพื่อเข้าสู่ขั้นตอนคัดกรอง'
+    );
   };
 
   // ==========================================
@@ -595,14 +586,13 @@ export default function OfficerDashboard({
         {[
           { id: 'officer-daily', label: 'งานที่ต้องทำวันนี้', icon: Clock, badge: DAILY_TASKS_OFFICER.length },
           { id: 'officer-screening', label: 'คัดกรองเอกสาร & Dual-View', icon: FileText },
-          { id: 'officer-calendar', label: 'ปฏิทิน & ตัดรอบ Cut-off', icon: Calendar },
+          { id: 'officer-cutoff', label: 'เปิด-ปิดรับสมัคร (Cut-off)', icon: Power },
           { id: 'officer-notifications', label: 'ส่งแจ้งเตือน Email', icon: Bell },
           { id: 'officer-profile-verify', label: 'ตรวจสอบการแก้ Profile', icon: ShieldCheck, badge: pendingProfileChanges.length },
-          { id: 'officer-audit-logs', label: 'ประวัติแก้ไข (Audit Logs)', icon: ShieldCheck, badge: auditLogs.length },
           { id: 'officer-cms', label: 'จัดการหน้าแรก (CMS)', icon: Globe },
         ].map(tab => {
           const Icon = tab.icon;
-          const isActive = currentTab === tab.id;
+          const isActive = currentTab === tab.id || (tab.id === 'officer-cutoff' && currentTab === 'officer-calendar');
           return (
             <button
               key={tab.id}
@@ -722,9 +712,9 @@ export default function OfficerDashboard({
                 type="button" 
                 className="btn btn-secondary btn-sm" 
                 style={{ width: '100%' }}
-                onClick={() => setTab('officer-calendar')}
+                onClick={() => setTab('officer-cutoff')}
               >
-                + ตั้งเวลา Cut-off หรือสร้างรอบพิจารณาใหม่
+                ⚙️ สลับสถานะเปิด-ปิดรับสมัคร (Cut-off Switch)
               </button>
             </div>
           </div>
@@ -870,219 +860,114 @@ export default function OfficerDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB: ประวัติแก้ไขข้อมูลและบันทึก AUDIT LOGS (PDPA COMPLIANCE & TRACEABILITY) */}
+      {/* TAB: เปิด-ปิดรับสมัครทุนการศึกษา (CUT-OFF ON/OFF SWITCH) */}
       {/* ========================================================================= */}
-      {currentTab === 'officer-audit-logs' && (
+      {(currentTab === 'officer-cutoff' || currentTab === 'officer-calendar') && (
         <div className="card">
           <div className="card-header">
             <div>
               <div className="card-title">
-                <ShieldCheck size={20} color="#E01A59" />
-                <span>บันทึกประวัติการแก้ไขข้อมูล (Database Audit Logs & Change Tracking)</span>
+                <Power size={20} color="#E01A59" />
+                <span>ควบคุมสถานะเปิด-ปิดรับสมัครทุนการศึกษา (Cut-off Application Toggle)</span>
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                ระบบติดตามและตรวจสอบย้อนหลังทุกการแก้ไขข้อมูลตามมาตรฐาน PDPA บันทึกวันเวลา ผู้แก้ไข ค่าเดิม ค่าใหม่ และ IP Address
+                สวิตช์สำหรับเจ้าหน้าที่ในการเปิดรับสมัคร หรือปิดรับสมัครคำขอรับทุนการศึกษา (ตัดรอบส่งเอกสารและกิจกรรม)
               </div>
             </div>
-            <span className="badge badge-chula" style={{ fontSize: '12px' }}>
-              ทั้งหมด {auditLogs.length} รายการ Log
+            <span className={`badge ${isApplicationOpen ? 'badge-approved' : 'badge-rejected'}`} style={{ fontSize: '13px', padding: '6px 14px' }}>
+              {isApplicationOpen ? '🟢 กำลังเปิดรับสมัคร' : '🔴 ปิดรับสมัครแล้ว (Cut-off)'}
             </span>
           </div>
 
-          {/* Filter Bar */}
-          <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 240px', position: 'relative' }}>
-              <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94A3B8' }} />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อผู้แก้ไข, เลขบัตร ปชช., รหัสนิสิต, ฟิลด์ที่แก้..."
-                className="form-control"
-                style={{ paddingLeft: '32px', fontSize: '12px' }}
-                value={auditLogSearch}
-                onChange={(e) => setAuditLogSearch(e.target.value)}
-              />
+          <div style={{
+            padding: '28px',
+            background: isApplicationOpen ? '#F0FDF4' : '#FEF2F2',
+            border: `1px solid ${isApplicationOpen ? '#BBF7D0' : '#FECDD3'}`,
+            borderRadius: '16px',
+            margin: '18px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '24px'
+          }}>
+            <div style={{ flex: '1 1 320px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: isApplicationOpen ? '#166534' : '#991B1B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                สถานะระบบการรับสมัครปัจจุบัน
+              </div>
+              <h3 style={{ fontSize: '22px', fontWeight: 800, color: isApplicationOpen ? '#14532D' : '#7F1D1D', marginTop: '4px' }}>
+                {isApplicationOpen ? 'เปิดรับสมัครคำขอรับทุนการศึกษา (Application Open)' : 'ปิดรับสมัครคำขอรับทุนการศึกษา (Application Closed / Cut-off)'}
+              </h3>
+              <p style={{ fontSize: '13px', color: isApplicationOpen ? '#15803D' : '#B91C1C', marginTop: '8px', lineHeight: 1.6 }}>
+                {isApplicationOpen 
+                  ? 'นิสิตและผู้สมัครใหม่ทุกคนสามารถยื่นแบบคำขอ อัปโหลดเอกสาร 7 แบบ และส่งบันทึกกิจกรรมสะสมแต้มได้ตามปกติ'
+                  : 'ระบบได้ปิดรับคำขอใหม่และระงับการอัปโหลดเอกสารชั่วคราว เจ้าหน้าที่กำลังอยู่ระหว่างคัดกรองและประเมินผล'}
+              </p>
+              
+              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', fontSize: '12px', color: '#475569', background: '#FFFFFF', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', width: 'fit-content', flexWrap: 'wrap' }}>
+                <div>⏱️ สลับสถานะล่าสุด: <strong>{cutoffToggleLog.lastToggledAt}</strong></div>
+                <div>👤 ดำเนินการโดย: <strong>{cutoffToggleLog.toggledBy}</strong></div>
+              </div>
             </div>
 
-            <div style={{ flex: '0 1 180px' }}>
-              <select
-                className="form-control"
-                style={{ fontSize: '12px' }}
-                value={auditLogFilterRole}
-                onChange={(e) => setAuditLogFilterRole(e.target.value)}
+            {/* Big Interactive ON / OFF Slide Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: '#FFFFFF', padding: '20px 24px', borderRadius: '14px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                สวิตช์เปิด-ปิดรับสมัคร (ON / OFF)
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleApplicationStatus}
+                style={{
+                  width: '140px',
+                  height: '58px',
+                  borderRadius: '35px',
+                  background: isApplicationOpen ? '#10B981' : '#EF4444',
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  padding: '5px',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                  transition: 'background-color 0.25s ease',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
               >
-                <option value="ALL">ทุกบทบาทผู้แก้ไข</option>
-                <option value="STUDENT">นิสิต (STUDENT)</option>
-                <option value="OFFICER">เจ้าหน้าที่ (OFFICER)</option>
-                <option value="FACULTY">อาจารย์ (FACULTY)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>รหัส Log & วันเวลา</th>
-                  <th>ผู้ดำเนินการ (Role)</th>
-                  <th>รหัสอ้างอิง (ปชช./นิสิต)</th>
-                  <th>ประเภทกิจกรรม</th>
-                  <th>ฟิลด์ที่แก้ไข</th>
-                  <th>ค่าเดิม (Old Value) ➔ ค่าใหม่ (New Value)</th>
-                  <th>IP Address</th>
-                  <th>สถานะ</th>
-                  <th>ผู้รับรอง & บันทึก</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditLogs
-                  .filter(log => {
-                    if (auditLogFilterRole !== 'ALL' && !log.user_role.includes(auditLogFilterRole)) return false;
-                    if (auditLogSearch) {
-                      const q = auditLogSearch.toLowerCase();
-                      return (
-                        log.performed_by.toLowerCase().includes(q) ||
-                        log.citizen_id.toLowerCase().includes(q) ||
-                        log.student_id.toLowerCase().includes(q) ||
-                        log.field_label.toLowerCase().includes(q) ||
-                        log.field_name.toLowerCase().includes(q)
-                      );
-                    }
-                    return true;
-                  })
-                  .map(log => (
-                    <tr key={log.id}>
-                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 700, color: '#0F172A' }}>{log.id}</div>
-                        <div style={{ color: '#64748B', marginTop: '2px' }}>{log.timestamp}</div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, fontSize: '12px' }}>{log.performed_by}</div>
-                        <span className={`badge ${log.user_role.includes('STUDENT') ? 'badge-chula' : log.user_role.includes('OFFICER') ? 'badge-received' : 'badge-approved'}`} style={{ fontSize: '10px' }}>
-                          {log.user_role}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '12px' }}>
-                        <div style={{ fontWeight: 600 }}>{log.student_id}</div>
-                        <div style={{ fontSize: '10px', color: '#64748B' }}>ปชช: {log.citizen_id}</div>
-                      </td>
-                      <td>
-                        <span className="badge badge-info" style={{ fontSize: '11px' }}>
-                          {log.action_type}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, fontSize: '12px', color: '#1E293B' }}>{log.field_label}</div>
-                        <code style={{ fontSize: '10px', color: '#64748B' }}>{log.field_name}</code>
-                      </td>
-                      <td style={{ fontSize: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: '#EF4444', textDecoration: 'line-through', background: '#FEF2F2', padding: '2px 6px', borderRadius: '4px' }}>
-                            {log.old_value}
-                          </span>
-                          <span>➔</span>
-                          <span style={{ color: '#059669', fontWeight: 700, background: '#ECFDF5', padding: '2px 6px', borderRadius: '4px' }}>
-                            {log.new_value}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>
-                        {log.ip_address}
-                      </td>
-                      <td>
-                        <span className={`badge ${log.status === 'VERIFIED' ? 'badge-approved' : log.status === 'PENDING' ? 'badge-review' : 'badge-received'}`} style={{ fontSize: '10px' }}>
-                          {log.status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '11px', color: '#475569', maxWidth: '200px' }}>
-                        <div>{log.note || '-'}</div>
-                        {log.verified_by !== '-' && (
-                          <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px' }}>
-                            ✓ {log.verified_by}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 4: ปฏิทินการศึกษา & ตัดรอบ Cut-off (พร้อม Date Picker แก้ไขได้จริง) */}
-      {/* ========================================================================= */}
-      {currentTab === 'officer-calendar' && (
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                <Calendar size={18} color="#E01A59" />
-                <span>ปฏิทินการศึกษา & กำหนดระยะเวลาตัดรอบเอกสาร (Cut-off Scheduler)</span>
-              </div>
-              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                กำหนดช่วงเวลารับเอกสาร วันตัดรอบส่งหลักฐาน และแก้ไขกำหนดเวลาผ่านตัวเลือกวันที่ (Date Picker)
+                {/* Thumb */}
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  boxShadow: '0 3px 8px rgba(0,0,0,0.3)',
+                  transform: isApplicationOpen ? 'translateX(82px)' : 'translateX(0px)',
+                  transition: 'transform 0.25s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 900,
+                  fontSize: '12px',
+                  color: isApplicationOpen ? '#059669' : '#DC2626'
+                }}>
+                  {isApplicationOpen ? 'ON' : 'OFF'}
+                </div>
+                
+                {/* Text inside track */}
+                <span style={{
+                  position: 'absolute',
+                  left: isApplicationOpen ? '18px' : 'auto',
+                  right: isApplicationOpen ? 'auto' : '18px',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '14px'
+                }}>
+                  {isApplicationOpen ? 'เปิด' : 'ปิด'}
+                </span>
+              </button>
+              <div style={{ fontSize: '11px', color: '#64748B' }}>
+                คลิกเพื่อ {isApplicationOpen ? 'ปิดรับสมัคร (Cut-off)' : 'เปิดรับสมัคร'}
               </div>
             </div>
-            <button 
-              type="button" 
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowAddRoundModal(true)}
-            >
-              <Plus size={14} /> เพิ่มรอบ / กำหนดวัน Cut-off ใหม่
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
-            {calendarRounds.map(r => (
-              <div key={r.id} style={{
-                padding: '16px',
-                borderRadius: '10px',
-                border: r.isCutoff ? '2px solid #FCA5A5' : '1px solid #E2E8F0',
-                background: r.isCutoff ? '#FFF5F5' : '#FFF',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '8px',
-                    background: r.isCutoff ? '#EF4444' : '#E2E8F0',
-                    color: r.isCutoff ? 'white' : '#475569',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700
-                  }}>
-                    {r.id}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: r.isCutoff ? '#991B1B' : '#1E293B' }}>
-                      {r.title}
-                    </div>
-                    <div style={{ fontSize: '12px', color: r.isCutoff ? '#DC2626' : '#64748B', marginTop: '2px' }}>
-                      📅 กำหนดการ: <strong>{r.date}</strong> {r.isCutoff && '⚠️ (ระบบจะหยุดรับเอกสารอัตโนมัติเมื่อถึงเวลานี้)'}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleOpenEditRound(r)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Calendar size={13} /> แก้ไขเวลา (Date Selector)
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -2686,72 +2571,6 @@ export default function OfficerDashboard({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 7: ADD ROUND CUT-OFF MODAL */}
-      {/* ========================================================================= */}
-      {showAddRoundModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <div style={{ fontWeight: 700, fontSize: '16px' }}>ตั้งเวลา Cut-off แต่ละรอบพิจารณาเอกสาร</div>
-              <button type="button" onClick={() => setShowAddRoundModal(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">ชื่อรอบพิจารณา</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="เช่น รอบที่ 2 ตัดรอบส่งเอกสารกลางภาค"
-                  value={newRoundForm.title}
-                  onChange={(e) => setNewRoundForm({ ...newRoundForm, title: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">วันตัดรอบ (Date)</label>
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    value={newRoundForm.cutOffDate}
-                    onChange={(e) => setNewRoundForm({ ...newRoundForm, cutOffDate: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">เวลาตัดรอบ (Time)</label>
-                  <input 
-                    type="time" 
-                    className="form-control" 
-                    value={newRoundForm.cutOffTime}
-                    onChange={(e) => setNewRoundForm({ ...newRoundForm, cutOffTime: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowAddRoundModal(false)}>
-                ยกเลิก
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={() => {
-                  const formatted = `${newRoundForm.cutOffDate} (${newRoundForm.cutOffTime} น.)`;
-                  setCalendarRounds([...calendarRounds, { id: calendarRounds.length + 1, title: newRoundForm.title, date: formatted, isCutoff: true }]);
-                  setShowAddRoundModal(false);
-                  alert('บันทึกรอบตัดเอกสารใหม่เรียบร้อยแล้ว!');
-                }}
-              >
-                บันทึกรอบ
-              </button>
-            </div>
           </div>
         </div>
       )}
