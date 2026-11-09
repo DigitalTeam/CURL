@@ -38,7 +38,8 @@ import {
   SCHOLARSHIP_TYPES, 
   ACADEMIC_CALENDAR_EVENTS,
   createStudentDocuments,
-  DISBURSEMENT_STAGES
+  DISBURSEMENT_STAGES,
+  INITIAL_AUDIT_LOGS
 } from '../data/mockData';
 
 export default function OfficerDashboard({ 
@@ -71,6 +72,43 @@ export default function OfficerDashboard({
   const [selectedStudentForDocApproval, setSelectedStudentForDocApproval] = useState(null);
   const [docApprovalPreviewModal, setDocApprovalPreviewModal] = useState(null);
   const [counselorReplyDraft, setCounselorReplyDraft] = useState('');
+
+  // Student Profile & Academic Records modal for Officer (สอดคล้องกับของอาจารย์)
+  const [selectedStudentForProfileModal, setSelectedStudentForProfileModal] = useState(null);
+  const [officerProfileModalTab, setOfficerProfileModalTab] = useState('academic'); // academic | scholarship | activities | contact | counseling
+
+  // Audit Logs State (Database Tracking System ตาม PDPA)
+  const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
+  const [auditLogSearch, setAuditLogSearch] = useState('');
+  const [auditLogFilterRole, setAuditLogFilterRole] = useState('ALL');
+
+  // Academic & Scholarship History Helpers for Student Profile Modal
+  const getAcademicHistory = (student) => {
+    const isDismissed = student?.student_status === 'พ้นสภาพ';
+    if (isDismissed) {
+      return [
+        { term: '1/2566', gpa: 2.38, gpax: 2.38, creditsTerm: 17, creditsTotal: 17, status: 'ปกติ' },
+        { term: '2/2566', gpa: 1.84, gpax: 2.11, creditsTerm: 18, creditsTotal: 35, status: 'วิทยาทัณฑ์ (Probation)' },
+        { term: '1/2567', gpa: 1.63, gpax: 1.87, creditsTerm: 17, creditsTotal: 52, status: 'วิทยาทัณฑ์ขั้นสูง' },
+        { term: '2/2567', gpa: 1.72, gpax: 1.82, creditsTerm: 18, creditsTotal: 70, status: 'พ้นสภาพ (GPAX ต่ำกว่าเกณฑ์)' },
+      ];
+    }
+    const currentGpax = Number(student?.gpax || 3.45);
+    return [
+      { term: '1/2566', gpa: currentGpax - 0.12, gpax: currentGpax - 0.12, creditsTerm: 19, creditsTotal: 19, status: 'ปกติ' },
+      { term: '2/2566', gpa: currentGpax + 0.08, gpax: currentGpax - 0.02, creditsTerm: 18, creditsTotal: 37, status: 'ปกติ' },
+      { term: '1/2567', gpa: currentGpax + 0.04, gpax: currentGpax, creditsTerm: 20, creditsTotal: 57, status: 'ปกติ (รับทุนต่อเนื่อง)' },
+    ];
+  };
+
+  const getScholarshipHistory = (student) => {
+    return [
+      { term: '1/2566', type: 'เงินรายเดือน', amount: 5000, date: '25 ส.ค. 2566', status: 'โอนสำเร็จ', ref: 'SCB-TX-990182' },
+      { term: '1/2566', type: 'ค่าอุปกรณ์และเครื่องแต่งกาย', amount: 6000, date: '10 ก.ย. 2566', status: 'โอนสำเร็จ', ref: 'SCB-TX-990344' },
+      { term: '2/2566', type: 'เงินรายเดือน', amount: 5000, date: '25 ม.ค. 2567', status: 'โอนสำเร็จ', ref: 'SCB-TX-104921' },
+      { term: '1/2567', type: 'เงินรายเดือน', amount: 5000, date: student?.estimatedPayoutDate ? `คาดการณ์: ${student.estimatedPayoutDate}` : 'อยู่ระหว่างดำเนินการ', status: student?.scholarshipStatus === 'SENT_TO_FINANCE' ? 'ส่งการคลังแล้ว' : 'รอการอนุมัติ', ref: 'SCB-PENDING-2567' },
+    ];
+  };
 
   const handleOpenDocApprovalModal = (student) => {
     // Ensure student has documents initialized
@@ -497,12 +535,35 @@ export default function OfficerDashboard({
     version: 'ปรับปรุง 2567'
   });
 
-  // Submit Score from Dual View Modal
+  // Submit Score from Dual View Modal (เจ้าหน้าที่เป็นผู้กำหนดคะแนนกิจกรรม)
   const handleCertifyScore = () => {
     if (!selectedStudentForDualView) return;
-    onVerifyDocumentScore(selectedStudentForDualView.student_id, Number(awardedScoreInput), physicalPaperChecked);
+    const addedScore = Number(awardedScoreInput);
+    onVerifyDocumentScore(selectedStudentForDualView.student_id, addedScore, physicalPaperChecked);
+    
+    // Add Audit Log entry
+    const newLog = {
+      id: `LOG-${Date.now().toString().slice(-6)}`,
+      timestamp: new Date().toLocaleString('sv-SE').replace('T', ' '),
+      performed_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+      user_role: 'OFFICER',
+      citizen_id: selectedStudentForDualView.citizen_id,
+      student_id: selectedStudentForDualView.student_id || 'รอจัดสรรรหัสนิสิต',
+      action_type: 'ASSIGN_ACTIVITY_SCORE',
+      field_name: 'accumulatedScore',
+      field_label: 'คะแนนกิจกรรมสะสม (เจ้าหน้าที่กำหนด)',
+      old_value: `${selectedStudentForDualView.accumulatedScore} แต้ม`,
+      new_value: `${selectedStudentForDualView.accumulatedScore + addedScore} แต้ม (+${addedScore} แต้ม)`,
+      ip_address: '161.200.5.110',
+      status: 'AUTO_LOGGED',
+      verified_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+      verified_at: new Date().toLocaleString('sv-SE').replace('T', ' '),
+      note: officerReviewNotes || 'เจ้าหน้าที่กำหนดคะแนนกิจกรรมสะสมและตรวจรับรองกระดาษจริง'
+    };
+    setAuditLogs([newLog, ...auditLogs]);
+
     setSelectedStudentForDualView(null);
-    alert('บันทึกการรับรองคะแนนและเอกสารกระดาษจริงเรียบร้อยแล้ว!');
+    alert(`บันทึกการกำหนดคะแนนกิจกรรม (+${addedScore} แต้ม) และรับรองเอกสารกระดาษจริงเรียบร้อยแล้ว!\n(ระบบได้บันทึกประวัติการเปลี่ยนแปลงลง Audit Log แล้ว)`);
   };
 
   return (
@@ -534,10 +595,10 @@ export default function OfficerDashboard({
         {[
           { id: 'officer-daily', label: 'งานที่ต้องทำวันนี้', icon: Clock, badge: DAILY_TASKS_OFFICER.length },
           { id: 'officer-screening', label: 'คัดกรองเอกสาร & Dual-View', icon: FileText },
-          { id: 'officer-schemes', label: 'จัดการประเภททุน (แยกปี)', icon: Award },
           { id: 'officer-calendar', label: 'ปฏิทิน & ตัดรอบ Cut-off', icon: Calendar },
-          { id: 'officer-notifications', label: 'ส่งเตือน Line OA / Email', icon: Bell },
+          { id: 'officer-notifications', label: 'ส่งแจ้งเตือน Email', icon: Bell },
           { id: 'officer-profile-verify', label: 'ตรวจสอบการแก้ Profile', icon: ShieldCheck, badge: pendingProfileChanges.length },
+          { id: 'officer-audit-logs', label: 'ประวัติแก้ไข (Audit Logs)', icon: ShieldCheck, badge: auditLogs.length },
           { id: 'officer-cms', label: 'จัดการหน้าแรก (CMS)', icon: Globe },
         ].map(tab => {
           const Icon = tab.icon;
@@ -618,9 +679,9 @@ export default function OfficerDashboard({
                         ส่งต่อ ➔
                       </button>
                     )}
-                    {task.category === 'Line OA' && (
+                    {task.category === 'Email' && (
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('officer-notifications')}>
-                        ส่งประกาศ ➔
+                        ส่งประกาศ Email ➔
                       </button>
                     )}
                   </div>
@@ -718,9 +779,18 @@ export default function OfficerDashboard({
                   const totalCount = studentDocs.length || 9;
 
                   return (
-                    <tr key={s.student_id}>
+                    <tr key={s.citizen_id}>
                       <td style={{ fontSize: '12px' }}>15 ต.ค. 2567</td>
-                      <td style={{ fontWeight: 700 }}>{s.student_id}</td>
+                      <td style={{ fontWeight: 700 }}>
+                        {s.student_id ? (
+                          <span>{s.student_id}</span>
+                        ) : (
+                          <div>
+                            <span style={{ color: '#D97706', fontSize: '11px', fontWeight: 700 }}>รอจัดสรร</span>
+                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 'normal' }}>ปชช: {s.citizen_id}</div>
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <div style={{ fontWeight: 600, color: '#0F172A' }}>
                           {s.title} {s.first_name} {s.last_name}
@@ -771,7 +841,7 @@ export default function OfficerDashboard({
                             onClick={() => handleOpenDocApprovalModal(s)}
                             style={{ fontWeight: 600 }}
                           >
-                            <ShieldCheck size={14} /> ตรวจ & อนุมัติเอกสาร (ทุกชิ้น)
+                            <ShieldCheck size={14} /> ตรวจเอกสาร
                           </button>
                           <button 
                             type="button" 
@@ -779,6 +849,14 @@ export default function OfficerDashboard({
                             onClick={() => setSelectedStudentForDualView(s)}
                           >
                             <Eye size={12} /> สแกนกิจกรรม (Dual-View)
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary btn-sm"
+                            style={{ background: '#FFF1F5', color: '#9F0837', borderColor: '#FCE7F0' }}
+                            onClick={() => setSelectedStudentForProfileModal(s)}
+                          >
+                            <Users size={12} /> ดูประวัตินิสิตฉบับเต็ม
                           </button>
                         </div>
                       </td>
@@ -792,81 +870,140 @@ export default function OfficerDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: จัดการทุนทุกแบบ (แก้ไข GPAX, โควตา, งบประมาณ, สถานะ ได้จริง) */}
+      {/* TAB: ประวัติแก้ไขข้อมูลและบันทึก AUDIT LOGS (PDPA COMPLIANCE & TRACEABILITY) */}
       {/* ========================================================================= */}
-      {currentTab === 'officer-schemes' && (
+      {currentTab === 'officer-audit-logs' && (
         <div className="card">
           <div className="card-header">
             <div>
               <div className="card-title">
-                <Award size={18} color="#E01A59" />
-                <span>จัดการข้อมูลทุนทุกแบบ แยกประจำปีการศึกษา (ไม่ทับประวัติปีเก่า)</span>
+                <ShieldCheck size={20} color="#E01A59" />
+                <span>บันทึกประวัติการแก้ไขข้อมูล (Database Audit Logs & Change Tracking)</span>
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                มี Interface แก้ไขเกณฑ์ GPAX, โควตา, งบประมาณจัดสรร, และปรับสถานะเปิด/ปิดรับคำขอ
+                ระบบติดตามและตรวจสอบย้อนหลังทุกการแก้ไขข้อมูลตามมาตรฐาน PDPA บันทึกวันเวลา ผู้แก้ไข ค่าเดิม ค่าใหม่ และ IP Address
               </div>
             </div>
-            <button 
-              type="button" 
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowAddSchemeModal(true)}
-            >
-              <Plus size={14} /> เพิ่มประเภททุนประจำปี
-            </button>
+            <span className="badge badge-chula" style={{ fontSize: '12px' }}>
+              ทั้งหมด {auditLogs.length} รายการ Log
+            </span>
           </div>
 
+          {/* Filter Bar */}
+          <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: '1 1 240px', position: 'relative' }}>
+              <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94A3B8' }} />
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อผู้แก้ไข, เลขบัตร ปชช., รหัสนิสิต, ฟิลด์ที่แก้..."
+                className="form-control"
+                style={{ paddingLeft: '32px', fontSize: '12px' }}
+                value={auditLogSearch}
+                onChange={(e) => setAuditLogSearch(e.target.value)}
+              />
+            </div>
+
+            <div style={{ flex: '0 1 180px' }}>
+              <select
+                className="form-control"
+                style={{ fontSize: '12px' }}
+                value={auditLogFilterRole}
+                onChange={(e) => setAuditLogFilterRole(e.target.value)}
+              >
+                <option value="ALL">ทุกบทบาทผู้แก้ไข</option>
+                <option value="STUDENT">นิสิต (STUDENT)</option>
+                <option value="OFFICER">เจ้าหน้าที่ (OFFICER)</option>
+                <option value="FACULTY">อาจารย์ (FACULTY)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>รหัสทุน</th>
-                  <th>ปี / เทอม</th>
-                  <th>หมวดหมู่ทุน</th>
-                  <th>ชื่อทุนการศึกษา</th>
-                  <th>จำนวนเงิน (บาท)</th>
-                  <th>เกณฑ์คะแนน</th>
-                  <th>เกณฑ์ GPAX</th>
-                  <th>โควตา (คน)</th>
-                  <th>งบประมาณจัดสรร</th>
-                  <th>สถานะทุน</th>
-                  <th>การจัดการ</th>
+                  <th>รหัส Log & วันเวลา</th>
+                  <th>ผู้ดำเนินการ (Role)</th>
+                  <th>รหัสอ้างอิง (ปชช./นิสิต)</th>
+                  <th>ประเภทกิจกรรม</th>
+                  <th>ฟิลด์ที่แก้ไข</th>
+                  <th>ค่าเดิม (Old Value) ➔ ค่าใหม่ (New Value)</th>
+                  <th>IP Address</th>
+                  <th>สถานะ</th>
+                  <th>ผู้รับรอง & บันทึก</th>
                 </tr>
               </thead>
               <tbody>
-                {schemes.map(sc => (
-                  <tr key={sc.id}>
-                    <td style={{ fontWeight: 600 }}>{sc.id}</td>
-                    <td><span className="badge badge-received">ปี {sc.year}/{sc.term}</span></td>
-                    <td style={{ fontWeight: 600, color: '#E01A59' }}>{sc.category}</td>
-                    <td style={{ fontWeight: 600 }}>{sc.name}</td>
-                    <td style={{ fontWeight: 700 }}>฿{sc.amount?.toLocaleString()}</td>
-                    <td>{sc.minScore} แต้ม</td>
-                    <td style={{ fontWeight: 700, color: '#2563EB' }}>
-                      {Number(sc.minGpax).toFixed(2)}
-                    </td>
-                    <td style={{ fontWeight: 700 }}>
-                      {sc.totalQuota} คน
-                    </td>
-                    <td style={{ fontWeight: 700, color: '#059669' }}>
-                      ฿{Number(sc.budgetAllocated).toLocaleString()}
-                    </td>
-                    <td>
-                      <span className={`badge ${sc.status === 'เปิดรับคำขอ' ? 'badge-approved' : 'badge-review'}`}>
-                        {sc.status || 'เปิดรับคำขอ'}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleOpenEditScheme(sc)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <Edit size={12} /> แก้ไขข้อมูล
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {auditLogs
+                  .filter(log => {
+                    if (auditLogFilterRole !== 'ALL' && !log.user_role.includes(auditLogFilterRole)) return false;
+                    if (auditLogSearch) {
+                      const q = auditLogSearch.toLowerCase();
+                      return (
+                        log.performed_by.toLowerCase().includes(q) ||
+                        log.citizen_id.toLowerCase().includes(q) ||
+                        log.student_id.toLowerCase().includes(q) ||
+                        log.field_label.toLowerCase().includes(q) ||
+                        log.field_name.toLowerCase().includes(q)
+                      );
+                    }
+                    return true;
+                  })
+                  .map(log => (
+                    <tr key={log.id}>
+                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 700, color: '#0F172A' }}>{log.id}</div>
+                        <div style={{ color: '#64748B', marginTop: '2px' }}>{log.timestamp}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '12px' }}>{log.performed_by}</div>
+                        <span className={`badge ${log.user_role.includes('STUDENT') ? 'badge-chula' : log.user_role.includes('OFFICER') ? 'badge-received' : 'badge-approved'}`} style={{ fontSize: '10px' }}>
+                          {log.user_role}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        <div style={{ fontWeight: 600 }}>{log.student_id}</div>
+                        <div style={{ fontSize: '10px', color: '#64748B' }}>ปชช: {log.citizen_id}</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-info" style={{ fontSize: '11px' }}>
+                          {log.action_type}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '12px', color: '#1E293B' }}>{log.field_label}</div>
+                        <code style={{ fontSize: '10px', color: '#64748B' }}>{log.field_name}</code>
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#EF4444', textDecoration: 'line-through', background: '#FEF2F2', padding: '2px 6px', borderRadius: '4px' }}>
+                            {log.old_value}
+                          </span>
+                          <span>➔</span>
+                          <span style={{ color: '#059669', fontWeight: 700, background: '#ECFDF5', padding: '2px 6px', borderRadius: '4px' }}>
+                            {log.new_value}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>
+                        {log.ip_address}
+                      </td>
+                      <td>
+                        <span className={`badge ${log.status === 'VERIFIED' ? 'badge-approved' : log.status === 'PENDING' ? 'badge-review' : 'badge-received'}`} style={{ fontSize: '10px' }}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '11px', color: '#475569', maxWidth: '200px' }}>
+                        <div>{log.note || '-'}</div>
+                        {log.verified_by !== '-' && (
+                          <div style={{ fontSize: '10px', color: '#059669', marginTop: '2px' }}>
+                            ✓ {log.verified_by}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -951,7 +1088,7 @@ export default function OfficerDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 5: ส่งเตือน LINE OA / EMAIL (ตัดแยก Custom Group ออกมาตามสั่ง) */}
+      {/* TAB 5: ส่งเตือน EMAIL (ตัดแยก Custom Group ออกมาตามสั่ง) */}
       {/* ========================================================================= */}
       {currentTab === 'officer-notifications' && (
         <div className="card">
@@ -959,7 +1096,7 @@ export default function OfficerDashboard({
             <div>
               <div className="card-title">
                 <Bell size={18} color="#E01A59" />
-                <span>ศูนย์แจ้งเตือนผ่าน Email & Line OA (Granular Group Targeting)</span>
+                <span>ศูนย์ส่งแจ้งเตือนผ่าน Email (Granular Group Targeting)</span>
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
                 เลือกกลุ่มเป้าหมายผู้รับประกาศอย่างละเอียด (แยกการกำหนดชั้นปี รุ่น คณะ ใน Custom Group)
@@ -1099,9 +1236,9 @@ export default function OfficerDashboard({
                   value={notificationChannel}
                   onChange={(e) => setNotificationChannel(e.target.value)}
                 >
-                  <option value="ALL">ทั้ง Line OA และ Email (@chula.ac.th)</option>
-                  <option value="LINE_OA">เฉพาะ Line OA (Official Account Push)</option>
-                  <option value="EMAIL">เฉพาะ Email มหาวิทยาลัย</option>
+                  <option value="EMAIL">Email ทางการ (@chula.ac.th หรืออีเมลผู้สมัคร)</option>
+                  <option value="IN_APP">In-App Notification ในระบบ</option>
+                  <option value="ALL">ส่งทั้ง Email และ In-App Notification</option>
                 </select>
               </div>
 
@@ -1153,7 +1290,7 @@ export default function OfficerDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 6: ตรวจคำร้องแก้ PROFILE (พร้อมฟอร์มขอข้อมูลเพิ่มส่ง Line OA) */}
+      {/* TAB 6: ตรวจคำร้องแก้ PROFILE (พร้อมฟอร์มขอข้อมูลเพิ่มส่ง Email) */}
       {/* ========================================================================= */}
       {currentTab === 'officer-profile-verify' && (
         <div className="card">
@@ -1164,7 +1301,7 @@ export default function OfficerDashboard({
                 <span>คิวตรวจสอบคำร้องแก้ไขข้อมูลส่วนตัว / บัญชีธนาคาร (Profile Verification Queue)</span>
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-                หากข้อมูลไม่ชัดเจน กด "ขอข้อมูลเพิ่ม" เพื่อเปิดฟอร์มและส่งแจ้งเตือนตรงเข้า Line OA ของนิสิต
+                หากข้อมูลไม่ชัดเจน กด "ขอข้อมูลเพิ่ม" เพื่อเปิดฟอร์มและส่งแจ้งเตือนตรงไปยัง Email ของนิสิต
               </div>
             </div>
             <span className="badge badge-review">รอตรวจสอบ {pendingProfileChanges.length} รายการ</span>
@@ -1219,7 +1356,7 @@ export default function OfficerDashboard({
                           onClick={() => setLineOARFIModalStudent(change)}
                           style={{ borderColor: '#E01A59', color: '#E01A59' }}
                         >
-                          <MessageSquare size={13} /> ขอข้อมูลเพิ่ม (Line OA)
+                          <MessageSquare size={13} /> ขอข้อมูลเพิ่ม (Email)
                         </button>
                       </div>
                     </td>
@@ -1691,7 +1828,7 @@ export default function OfficerDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: LINE OA REQUEST FOR INFORMATION (RFI) FORM */}
+      {/* MODAL 3: EMAIL REQUEST FOR INFORMATION (RFI) FORM */}
       {/* ========================================================================= */}
       {lineOARFIModalStudent && (
         <div className="modal-overlay">
@@ -1699,7 +1836,7 @@ export default function OfficerDashboard({
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '16px' }}>
                 <MessageSquare color="#E01A59" size={20} />
-                <span>ขอข้อมูลและเอกสารเพิ่มเติมผ่าน Line OA (Request For Information)</span>
+                <span>ขอข้อมูลและเอกสารเพิ่มเติมผ่าน Email (Request For Information)</span>
               </div>
               <button type="button" onClick={() => setLineOARFIModalStudent(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
                 <X size={18} />
@@ -1755,7 +1892,7 @@ export default function OfficerDashboard({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">ข้อความที่จะแจ้งเตือนตรงเข้า Line OA ของนิสิต</label>
+                  <label className="form-label">ข้อความที่จะแจ้งเตือนตรงเข้า Email ของนิสิต</label>
                   <textarea 
                     rows={3} 
                     className="form-control"
@@ -1763,7 +1900,7 @@ export default function OfficerDashboard({
                     onChange={(e) => setRfiOptions({ ...rfiOptions, customNote: e.target.value })}
                   />
                   <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>
-                    ✓ ข้อความนี้จะถูกส่งเป็น Rich Alert ผ่าน Line Official Account ทันทีเมื่อกดยืนยัน
+                    ✓ ข้อความนี้จะถูกส่งเป็น Notification Mail ไปยังอีเมลของนิสิตทันทีเมื่อกดยืนยัน
                   </div>
                 </div>
               </div>
@@ -1772,8 +1909,8 @@ export default function OfficerDashboard({
                 <button type="button" className="btn btn-secondary" onClick={() => setLineOARFIModalStudent(null)}>
                   ยกเลิก
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ background: '#06C755', borderColor: '#06C755' }}>
-                  <Send size={15} /> ส่งแจ้งเตือนผ่าน Line OA ทันที
+                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Send size={15} /> ส่งแจ้งเตือนผ่าน Email ทันที
                 </button>
               </div>
             </form>
@@ -3065,6 +3202,263 @@ export default function OfficerDashboard({
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setDocApprovalPreviewModal(null)}>
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 10: STUDENT PROFILE & ACADEMIC RECORDS (OFFICER FULL VIEW) */}
+      {selectedStudentForProfileModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '820px' }}>
+            <div className="modal-header">
+              <div style={{ fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={18} color="#E01A59" />
+                <span>ประวัตินิสิตและผลการเรียนฉบับเต็ม (Student Profile & Academic Records)</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSelectedStudentForProfileModal(null)} 
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {/* Profile Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '16px', borderBottom: '1px solid #E2E8F0', marginBottom: '16px' }}>
+                <img 
+                  src={selectedStudentForProfileModal.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop'} 
+                  alt="" 
+                  style={{ width: '68px', height: '68px', borderRadius: '50%', border: '3px solid #E01A59', objectFit: 'cover' }} 
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                      {selectedStudentForProfileModal.title} {selectedStudentForProfileModal.first_name} {selectedStudentForProfileModal.last_name}
+                    </h3>
+                    <span className={`badge ${selectedStudentForProfileModal.student_status === 'พ้นสภาพ' ? 'badge-rejected' : 'badge-approved'}`}>
+                      {selectedStudentForProfileModal.student_status || 'กำลังเรียน'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+                    รหัสนิสิต: {selectedStudentForProfileModal.student_id ? <strong>{selectedStudentForProfileModal.student_id}</strong> : <span style={{ color: '#D97706', fontWeight: 700 }}>(ยังไม่มีรหัสนิสิต / รอจัดสรร)</span>} • เลขบัตร ปชช.: <strong>{selectedStudentForProfileModal.citizen_id}</strong> • คณะ <strong>{selectedStudentForProfileModal.faculty_name}</strong> ({selectedStudentForProfileModal.province})
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-Tabs */}
+              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'academic', label: 'ผลการเรียนรายภาค', icon: BookOpen },
+                  { id: 'scholarship', label: 'ประวัติรับเงินทุน', icon: DollarSign },
+                  { id: 'activities', label: 'ชั่วโมงจิตอาสา', icon: CheckCircle },
+                  { id: 'contact', label: 'ข้อมูลการติดต่อ/ที่อยู่', icon: Phone },
+                  { id: 'counseling', label: 'จดหมายปรึกษาใจ', icon: MessageSquare }
+                ].map(t => {
+                  const Icon = t.icon;
+                  const isActive = officerProfileModalTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setOfficerProfileModalTab(t.id)}
+                      style={{ fontSize: '12px' }}
+                    >
+                      <Icon size={14} /> {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab 1: Academic */}
+              {officerProfileModalTab === 'academic' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
+                      ประวัติผลการเรียน (Academic Performance by Semester)
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#64748B' }}>
+                      GPAX เฉลี่ยสะสม: <strong style={{ color: selectedStudentForProfileModal.gpax < 2.0 ? '#EF4444' : '#059669', fontSize: '14px' }}>{Number(selectedStudentForProfileModal.gpax || 3.45).toFixed(2)}</strong>
+                    </span>
+                  </div>
+
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>ภาคการศึกษา</th>
+                          <th>GPA ประจำภาค</th>
+                          <th>GPAX สะสม</th>
+                          <th>หน่วยกิตภาค</th>
+                          <th>หน่วยกิตสะสม</th>
+                          <th>สถานะผลการเรียน</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getAcademicHistory(selectedStudentForProfileModal).map(sem => (
+                          <tr key={sem.term}>
+                            <td style={{ fontWeight: 600 }}>{sem.term}</td>
+                            <td>{Number(sem.gpa || 0).toFixed(2)}</td>
+                            <td style={{ fontWeight: 700, color: Number(sem.gpax || 0) < 2.0 ? '#EF4444' : '#0F172A' }}>
+                              {Number(sem.gpax || 0).toFixed(2)}
+                            </td>
+                            <td>{sem.creditsTerm}</td>
+                            <td>{sem.creditsTotal}</td>
+                            <td>
+                              <span className={`badge ${sem.status.includes('ปกติ') ? 'badge-approved' : 'badge-rejected'}`} style={{ fontSize: '10px' }}>
+                                {sem.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Scholarship */}
+              {officerProfileModalTab === 'scholarship' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
+                      ประวัติการเบิกจ่ายและรับเงินทุนการศึกษา
+                    </span>
+                    <span className="badge badge-received">รวมเบิกจ่ายแล้ว 4 รายการ</span>
+                  </div>
+
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>ภาคเรียน</th>
+                          <th>ประเภททุน</th>
+                          <th>จำนวนเงิน</th>
+                          <th>วันที่โอน</th>
+                          <th>สถานะการโอนเงิน</th>
+                          <th>เลขอ้างอิง</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getScholarshipHistory(selectedStudentForProfileModal).map((p, idx) => (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: 600 }}>{p.term}</td>
+                            <td>{p.type}</td>
+                            <td style={{ fontWeight: 700, color: '#059669' }}>฿{p.amount.toLocaleString()}</td>
+                            <td style={{ fontSize: '12px' }}>{p.date}</td>
+                            <td>
+                              <span className={`badge ${p.status === 'โอนสำเร็จ' ? 'badge-approved' : 'badge-review'}`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '11px', color: '#64748B' }}><code>{p.ref}</code></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ marginTop: '12px', fontSize: '12px', color: '#475569', background: '#F8FAFC', padding: '10px 14px', borderRadius: '8px' }}>
+                    💳 <strong>บัญชีรับเงินโอน:</strong> {selectedStudentForProfileModal.bank_name || 'ธนาคารไทยพาณิชย์'} เลขที่ {selectedStudentForProfileModal.bank_account_number || '026-2-88912-3'}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Activities */}
+              {officerProfileModalTab === 'activities' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>
+                      บันทึกกิจกรรมจิตอาสาและการสะสมแต้ม
+                    </span>
+                    <span className="badge badge-approved">
+                      สะสม {selectedStudentForProfileModal.accumulatedScore || 0} / 40 แต้ม
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[
+                      { title: 'โครงการค่ายอาสาพัฒนาชนบท จ.น่าน', hours: '24 ชม.', score: 15, date: '20-25 ก.ย. 2567' },
+                      { title: 'ภารกิจจิตอาสาบรรเทาอุทกภัย จ.อุบลราชธานี', hours: '16 ชม.', score: 12, date: '1-5 ต.ค. 2567' },
+                      { title: 'ปฐมนิเทศ & สัมมนาโครงการพัฒนาชุมชน', hours: '8 ชม.', score: 10, date: '10 ต.ค. 2567' }
+                    ].map((act, idx) => (
+                      <div key={idx} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '13px' }}>{act.title}</div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>📅 {act.date} • {act.hours}</div>
+                        </div>
+                        <span className="badge badge-received" style={{ fontWeight: 700, color: '#E01A59' }}>
+                          +{act.score} แต้ม
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: Contact */}
+              {officerProfileModalTab === 'contact' && (
+                <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px', border: '1px solid #E2E8F0', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>Email ติดต่อ / มหาวิทยาลัย:</span>
+                    <strong>{selectedStudentForProfileModal.email || `${selectedStudentForProfileModal.student_id}@chula.ac.th`}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>เบอร์โทรศัพท์นิสิต:</span>
+                    <strong>{selectedStudentForProfileModal.phone_number || '081-234-5678'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>เบอร์ติดต่อฉุกเฉิน (ผู้ปกครอง):</span>
+                    <strong>{selectedStudentForProfileModal.emergency_phone || '089-876-5432'} ({selectedStudentForProfileModal.emergency_relation || 'บิดา'})</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>ที่อยู่ภูมิลำเนา:</span>
+                    <strong>{selectedStudentForProfileModal.address_line || '-'} {selectedStudentForProfileModal.district} {selectedStudentForProfileModal.province}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748B' }}>หอพักนักศึกษา:</span>
+                    <strong>{selectedStudentForProfileModal.dormitory || 'หอพักนิสิตจุฬาฯ'} ({selectedStudentForProfileModal.dorm_room_bed || 'จำปา/404/D'})</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 5: Counseling */}
+              {officerProfileModalTab === 'counseling' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ background: '#FFF5F8', border: '1px solid #FCE7F0', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#9F0837', marginBottom: '6px' }}>
+                      ✉️ ข้อความกังวลใจ / คำปรึกษาจากนิสิต:
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#334155', fontStyle: 'italic', lineHeight: 1.6 }}>
+                      "{selectedStudentForProfileModal.confidential_letter || 'นิสิตไม่ได้ระบุข้อความกังวลใจ'}"
+                    </div>
+                  </div>
+
+                  {selectedStudentForProfileModal.confidential_letter_reply && (
+                    <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '6px' }}>
+                        ✓ ข้อความตอบกลับจากศูนย์ฯ / อาจารย์:
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#14532D', lineHeight: 1.6 }}>
+                        "{selectedStudentForProfileModal.confidential_letter_reply}"
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setSelectedStudentForProfileModal(null)}
+              >
                 ปิดหน้าต่าง
               </button>
             </div>

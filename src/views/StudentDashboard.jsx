@@ -272,8 +272,14 @@ export default function StudentDashboard({
                 </span>
               </div>
               <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
-                รหัสนิสิต: <strong>{student.student_id}</strong> • คณะ{student.faculty_name} สาขา{student.major_name} • เกรดสะสม (GPAX): <strong style={{ color: '#0F172A' }}>{Number(student.gpax || 0).toFixed(2)}</strong>
+                รหัสนิสิต: {student.student_id ? <strong>{student.student_id}</strong> : <span style={{ color: '#D97706', fontWeight: 700 }}>(ยังไม่มีรหัสนิสิต / รอจัดสรร)</span>} • เลขบัตร ปชช.: <strong>{student.citizen_id}</strong> • คณะ{student.faculty_name} สาขา{student.major_name} • เกรดสะสม (GPAX): <strong style={{ color: '#0F172A' }}>{Number(student.gpax || 0).toFixed(2)}</strong>
               </div>
+              {!student.student_id && (
+                <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', padding: '6px 10px', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#92400E' }}>
+                  <AlertCircle size={14} color="#D97706" />
+                  <span><strong>กรณีผู้สมัครใหม่ที่ยังไม่มีรหัสนิสิต:</strong> ท่านสามารถใช้เลขบัตรประจำตัวประชาชน 13 หลัก ติดต่อและยื่นเอกสารกับศูนย์ฯ ได้ตามปกติ</span>
+                </div>
+              )}
             </div>
           </div>
 

@@ -315,6 +315,8 @@ export const INITIAL_STUDENTS = [
     bank_branch_code: "026",
     bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
     remarks: "นิสิตมีความตั้งใจดี มีความจำเป็นด้านค่าครองชีพ",
+    lat: 16.5436,
+    lng: 104.7235,
 
     // Google Form Survey & Academic registration fields
     year_level: 2,
@@ -390,6 +392,8 @@ export const INITIAL_STUDENTS = [
     bank_branch_code: "026",
     bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
     remarks: "ขาดเอกสารบันทึกกิจกรรมจิตอาสา 1 ฉบับ",
+    lat: 15.1186,
+    lng: 104.3220,
 
     year_level: 2,
     academic_year: 2567,
@@ -464,6 +468,8 @@ export const INITIAL_STUDENTS = [
     bank_branch_code: "026",
     bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
     remarks: "ผลการเรียนดีเด่น กิจกรรมครบถ้วน",
+    lat: 15.2448,
+    lng: 104.8473,
 
     year_level: 2,
     academic_year: 2567,
@@ -538,6 +544,8 @@ export const INITIAL_STUDENTS = [
     bank_branch_code: "026",
     bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
     remarks: "เพิ่งยื่นเอกสารรอบล่าสุด รอเจ้าหน้าที่ตรวจกระดาษจริง",
+    lat: 14.9799,
+    lng: 102.0978,
 
     year_level: 2,
     academic_year: 2567,
@@ -613,7 +621,8 @@ export const INITIAL_STUDENTS = [
     bank_branch_code: "026",
     bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
     remarks: "พ้นสภาพการเป็นนิสิตเนื่องจากผลการเรียนไม่ถึงเกณฑ์ (GPAX < 1.75 ติดต่อกัน)",
-
+    lat: 19.9105,
+    lng: 99.8406,
     year_level: 3,
     academic_year: 2567,
     registered_courses_count: 0,
@@ -646,6 +655,83 @@ export const INITIAL_STUDENTS = [
     avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop",
     documents: createStudentDocuments('65400009', false),
     reimbursements: createStudentReimbursements('65400009', false)
+  },
+  {
+    // กรณีที่ยังไม่ได้รับรหัสนิสิต (ผู้เพิ่งสมัครเข้าศึกษา/ยืนยันสิทธิ์) ใช้เฉพาะเลขประจำตัวประชาชน
+    seq_no: 6,
+    cohort_seq_no: 1,
+    faculty_seq_no: 1,
+    cohort_no: "2567 (รุ่น 42 ผู้สมัครใหม่)",
+    citizen_id: "1-5599-00142-33-8",
+    student_id: "", // ยังไม่มีรหัสนิสิต
+    title: "นาย",
+    first_name: "พงศธร",
+    last_name: "แก้วมณี",
+    first_name_en: "Pongsatorn",
+    last_name_en: "Kaewmanee",
+    nickname: "ภัทร",
+    email: "pongsatorn.k.applicant@gmail.com",
+    faculty_name: "ครุศาสตร์",
+    major_name: "ภาษาไทย",
+    high_school_name: "โรงเรียนปัว",
+    school_district: "ปัว",
+    school_province: "น่าน",
+    father_name: "นายบุญมี แก้วมณี",
+    mother_name: "นางสมพร แก้วมณี",
+    family_status: "อยู่ด้วยกัน",
+    guardian_name: "นายบุญมี แก้วมณี",
+    guardian_occupation: "เกษตรกรทำไร่ข้าวโพด",
+    father_occupation: "เกษตรกรรม",
+    mother_occupation: "แม่บ้าน",
+    monthly_income: 9200,
+    address_line: "48 หมู่ 5 ต.วรนคร",
+    subdistrict: "วรนคร",
+    district: "ปัว",
+    province: "น่าน",
+    postal_code: "55120",
+    phone_number: "082-999-4411",
+    emergency_phone: "081-888-3322",
+    emergency_relation: "บิดา",
+    bank_account_name: "นาย พงศธร แก้วมณี",
+    bank_account_number: "026-6-77890-1",
+    bank_name: "ธนาคารไทยพาณิชย์",
+    bank_branch: "สาขาปัว (น่าน)",
+    bank_branch_code: "026",
+    bank_book_file_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
+    remarks: "ผู้สมัครรับทุนรอบใหม่ เพิ่งยืนยันสิทธิ์เข้าศึกษา อยู่ระหว่างรอจุฬาฯ ออกรหัสนิสิตทางการ ให้ใช้เลขบัตร ปชช. ติดต่อ",
+    lat: 19.1764,
+    lng: 100.9167,
+
+    year_level: 1,
+    academic_year: 2567,
+    registered_courses_count: 6,
+    registered_credits_count: 18,
+    cr54_filename: "cr54_applicant_1559900142338.pdf",
+    cr54_file_url: "./assets/camp.jpg",
+    cr60_filename: "portfolio_transcript_1559900142338.pdf",
+    cr60_file_url: "./assets/camp.jpg",
+    accommodation_type: "หอใน",
+    dorm_room_bed: "รอจัดสรร",
+    dormitory: "หอพักนิสิตจุฬาฯ (รอจัดสรร)",
+    external_dorm_address: "",
+    external_dorm_roommate: "",
+    external_dorm_type: "ห้องเช่ารายเดือน",
+    external_dorm_expenses: "",
+    confidential_letter: "เนื่องจากผมเพิ่งได้รับการคัดเลือกและยืนยันสิทธิ์เข้าศึกษา ยังไม่ได้รับรหัสนิสิตทางการ อยากสอบถามว่าการยื่นเอกสารขอรับทุนค่าครองชีพในรอบแรก สามารถใช้เลขบัตรประชาชนในการยื่นคำขอและติดตามผลได้เลยใช่ไหมครับ",
+    confidential_letter_reply: "ถูกต้องครับลูก นิสิตใหม่ที่ยังไม่ได้รับรหัสนิสิตสามารถใช้เลขบัตรประจำตัวประชาชน 13 หลัก ติดต่อและส่งเอกสารได้ทุกขั้นตอนเลยครับ",
+    confidential_letter_status: "REPLIED",
+
+    gpax: 3.75,
+    student_status: "ผู้สมัครใหม่ (รอจัดสรรรหัสนิสิต)",
+    accumulatedScore: 28,
+    requiredScore: 40,
+    scholarshipType: "เงินรายเดือน",
+    scholarshipStatus: "DOCUMENTS_RECEIVED",
+    estimatedPayoutDate: "2026-11-20",
+    paperStatus: "รอตรวจสอบ",
+    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop",
+    documents: createStudentDocuments('applicant_1559900142338', false),
+    reimbursements: createStudentReimbursements('applicant_1559900142338', false)
   }
 ];
 
@@ -702,7 +788,7 @@ export const DAILY_TASKS_OFFICER = [
   { id: 1, title: 'ตรวจสอบภาพสแกนเอกสารทุนใหม่ 14 รายการ', urgent: true, count: 14, category: 'เอกสาร' },
   { id: 2, title: 'ตรวจคำร้องขอแก้ไขเลขบัญชีธนาคาร 2 รายการ', urgent: true, count: 2, category: 'Profile Verify' },
   { id: 3, title: 'ส่งต่อรายชื่อผู้ผ่านเกณฑ์รอบที่ 1 ให้อาจารย์ผู้อนุมัติ (Bulk Submit)', urgent: false, count: 28, category: 'ส่งต่อ' },
-  { id: 4, title: 'เตรียมประกาศแจ้งเตือนวัน Cut-off ส่งเอกสารผ่าน Line OA', urgent: false, count: 125, category: 'Line OA' }
+  { id: 4, title: 'เตรียมประกาศแจ้งเตือนวัน Cut-off ส่งเอกสารผ่าน Email', urgent: false, count: 125, category: 'Email' }
 ];
 
 export const ACADEMIC_CALENDAR_EVENTS = [
@@ -717,14 +803,14 @@ export const NOTIFICATION_TEMPLATES = [
   {
     id: 'NT-01',
     target: 'นิสิต',
-    channel: 'LINE_OA & Email',
+    channel: 'Email',
     title: 'แจ้งผลการอนุมัติทุนการศึกษาและกำหนดการโอนเงิน',
     content: 'ทุนการศึกษาประจำภาคเรียนที่ 1/2567 ของท่านผ่านการอนุมัติแล้ว อยู่ระหว่างส่งการคลัง คาดการณ์เงินโอนเข้าวันที่ 25 ต.ค. 2567'
   },
   {
     id: 'NT-02',
     target: 'นิสิต',
-    channel: 'LINE_OA',
+    channel: 'Email',
     title: 'ขอเอกสารเพิ่มเติม (RFI): สำเนาสมุดบัญชีธนาคารไม่ชัดเจน',
     content: 'กรุณาอัปโหลดสำเนาหน้าสมุดบัญชีธนาคารไทยพาณิชย์ใหม่อีกครั้งภายในวันที่ 18 ต.ค. 2567 เพื่อความถูกต้องในการเบิกจ่าย'
   },
@@ -741,5 +827,99 @@ export const NOTIFICATION_TEMPLATES = [
     channel: 'In-App Alert',
     title: 'แจ้งเตือน: ถึงกำหนดวัน Cut-off เอกสารประจำรอบในอีก 24 ชม.',
     content: 'ระบบจะปิดรับการอัปโหลดเอกสารรอบที่ 1 ในเวลา 23:59 น. กรุณาเร่งตรวจสอบคิวเอกสารที่ค้างอยู่'
+  }
+];
+
+// Audit Log Dataset Tracking Historical Data Modifications (ตามข้อกำหนด PDPA และ Audit Trail)
+export const INITIAL_AUDIT_LOGS = [
+  {
+    id: 'LOG-2567-001',
+    timestamp: '2026-10-18 10:45:12',
+    performed_by: 'กัญญาภัค ศรีสุข',
+    user_role: 'STUDENT',
+    citizen_id: '1-3499-00123-45-1',
+    student_id: '66700012',
+    action_type: 'UPDATE_PROFILE',
+    field_name: 'bank_account_number',
+    field_label: 'เลขที่บัญชีธนาคาร SCB',
+    old_value: '026-2-88912-0',
+    new_value: '026-2-88912-3',
+    ip_address: '161.200.198.42',
+    status: 'VERIFIED',
+    verified_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+    verified_at: '2026-10-18 11:20:05',
+    note: 'นิสิตแนบภาพสแกนหน้าสมุดบัญชี SCB สาขาสภากาชาดไทยฉบับใหม่เพื่อยืนยัน'
+  },
+  {
+    id: 'LOG-2567-002',
+    timestamp: '2026-10-17 15:30:40',
+    performed_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+    user_role: 'OFFICER',
+    citizen_id: '1-4199-00987-12-3',
+    student_id: '66700027',
+    action_type: 'ASSIGN_ACTIVITY_SCORE',
+    field_name: 'accumulatedScore',
+    field_label: 'คะแนนกิจกรรมสะสม',
+    old_value: '24 แต้ม',
+    new_value: '36 แต้ม (+12 แต้ม)',
+    ip_address: '161.200.5.110',
+    status: 'AUTO_LOGGED',
+    verified_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+    verified_at: '2026-10-17 15:30:40',
+    note: 'เจ้าหน้าที่ตรวจรับรองสมุดบันทึกกิจกรรมค่ายอาสาและกำหนดคะแนนสะสม'
+  },
+  {
+    id: 'LOG-2567-003',
+    timestamp: '2026-10-17 14:12:00',
+    performed_by: 'อดุลภัทร พลอยดี',
+    user_role: 'STUDENT',
+    citizen_id: '1-4199-00987-12-3',
+    student_id: '66700027',
+    action_type: 'UPDATE_PROFILE',
+    field_name: 'emergency_phone',
+    field_label: 'เบอร์ติดต่อฉุกเฉิน',
+    old_value: '081-000-0000',
+    new_value: '081-333-2211',
+    ip_address: '182.52.211.89',
+    status: 'VERIFIED',
+    verified_by: 'จุฬารัตน์ รุ่งเรือง (เจ้าหน้าที่)',
+    verified_at: '2026-10-17 14:45:00',
+    note: 'ปรับปรุงเบอร์โทรฉุกเฉินของมารดา'
+  },
+  {
+    id: 'LOG-2567-004',
+    timestamp: '2026-10-16 09:20:18',
+    performed_by: 'พงศธร แก้วมณี',
+    user_role: 'STUDENT (APPLICANT)',
+    citizen_id: '1-5599-00142-33-8',
+    student_id: 'รอจัดสรรรหัสนิสิต',
+    action_type: 'SUBMIT_APPLICATION',
+    field_name: 'application_form',
+    field_label: 'แบบคำขอรับทุนการศึกษา (ผู้สมัครใหม่)',
+    old_value: 'ยังไม่ส่ง',
+    new_value: 'ส่งเอกสารแล้ว (ใช้เลขบัตร ปชช. ติดต่อ)',
+    ip_address: '124.120.15.67',
+    status: 'PENDING',
+    verified_by: '-',
+    verified_at: '-',
+    note: 'นิสิตใหม่รอบคัดเลือกยื่นเอกสารฉบับแรกโดยใช้เลขประจำตัวประชาชน 13 หลัก'
+  },
+  {
+    id: 'LOG-2567-005',
+    timestamp: '2026-10-15 16:00:22',
+    performed_by: 'ศ.ดร. นภดล สุวรรณเวช (อาจารย์)',
+    user_role: 'FACULTY',
+    citizen_id: '1-3399-00445-66-7',
+    student_id: '66700033',
+    action_type: 'APPROVE_SCHOLARSHIP',
+    field_name: 'scholarshipStatus',
+    field_label: 'สถานะการอนุมัติทุนการศึกษา',
+    old_value: 'UNDER_CONSIDERATION',
+    new_value: 'APPROVED',
+    ip_address: '161.200.22.8',
+    status: 'AUTO_LOGGED',
+    verified_by: 'ศ.ดร. นภดล สุวรรณเวช',
+    verified_at: '2026-10-15 16:00:22',
+    note: 'อาจารย์ลงนามอนุมัติทุนการศึกษาประจำภาคเรียนที่ 1/2567'
   }
 ];

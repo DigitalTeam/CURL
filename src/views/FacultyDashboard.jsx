@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { 
   Users, 
   GraduationCap, 
@@ -22,7 +24,8 @@ import {
   BookOpen,
   Calendar,
   CreditCard,
-  Building
+  Building,
+  ArrowUpDown
 } from 'lucide-react';
 import { INITIAL_STUDENTS } from '../data/mockData';
 
@@ -50,6 +53,17 @@ export default function FacultyDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [studentModalTab, setStudentModalTab] = useState('academic'); // academic | scholarship | contact | activities
 
+  // Map Filter & Sorting States (Leaflet Map)
+  const [mapSearchTerm, setMapSearchTerm] = useState('');
+  const [mapFilterCohort, setMapFilterCohort] = useState('all');
+  const [mapFilterFaculty, setMapFilterFaculty] = useState('all');
+  const [mapFilterProvince, setMapFilterProvince] = useState('all');
+  const [mapSortBy, setMapSortBy] = useState('score-desc');
+
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersGroupRef = useRef(null);
+
   // Executive counts matching photo 1 & photo 3
   const totalStudentsCount = 125;
   const studyingCount = 97;
@@ -67,15 +81,122 @@ export default function FacultyDashboard({
     if (filterFaculty !== 'all' && s.faculty_name !== filterFaculty) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
+      const sId = (s.student_id || '').toLowerCase();
+      const cId = (s.citizen_id || '').toLowerCase();
+      const fName = (s.first_name || '').toLowerCase();
+      const lName = (s.last_name || '').toLowerCase();
+      const prov = (s.province || '').toLowerCase();
       return (
-        s.student_id.toLowerCase().includes(q) ||
-        s.first_name.toLowerCase().includes(q) ||
-        s.last_name.toLowerCase().includes(q) ||
-        s.province.toLowerCase().includes(q)
+        sId.includes(q) ||
+        cId.includes(q) ||
+        fName.includes(q) ||
+        lName.includes(q) ||
+        prov.includes(q)
       );
     }
     return true;
   });
+
+  // Filtered & Sorted Students specifically for Leaflet GIS Map
+  const mapFilteredStudents = students.filter(s => {
+    if (mapFilterCohort !== 'all' && !(s.cohort_no || '').includes(mapFilterCohort)) return false;
+    if (mapFilterFaculty !== 'all' && s.faculty_name !== mapFilterFaculty) return false;
+    if (mapFilterProvince !== 'all' && s.province !== mapFilterProvince) return false;
+    if (mapSearchTerm) {
+      const q = mapSearchTerm.toLowerCase();
+      const sId = (s.student_id || '').toLowerCase();
+      const cId = (s.citizen_id || '').toLowerCase();
+      const fName = (s.first_name || '').toLowerCase();
+      const lName = (s.last_name || '').toLowerCase();
+      const prov = (s.province || '').toLowerCase();
+      const school = (s.high_school_name || '').toLowerCase();
+      return (
+        sId.includes(q) ||
+        cId.includes(q) ||
+        fName.includes(q) ||
+        lName.includes(q) ||
+        prov.includes(q) ||
+        school.includes(q)
+      );
+    }
+    return true;
+  }).sort((a, b) => {
+    if (mapSortBy === 'score-desc') return (b.accumulatedScore || 0) - (a.accumulatedScore || 0);
+    if (mapSortBy === 'score-asc') return (a.accumulatedScore || 0) - (b.accumulatedScore || 0);
+    if (mapSortBy === 'gpax-desc') return (b.gpax || 0) - (a.gpax || 0);
+    if (mapSortBy === 'gpax-asc') return (a.gpax || 0) - (b.gpax || 0);
+    return 0;
+  });
+
+  // Extract unique faculties & provinces for map filters
+  const uniqueFaculties = Array.from(new Set(students.map(s => s.faculty_name).filter(Boolean)));
+  const uniqueProvinces = Array.from(new Set(students.map(s => s.province).filter(Boolean)));
+
+  // Initialize and update Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: [15.2, 101.5],
+        zoom: 6,
+        scrollWheelZoom: false
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const markersGroup = L.layerGroup().addTo(map);
+      markersGroupRef.current = markersGroup;
+      mapInstanceRef.current = map;
+    }
+
+    if (markersGroupRef.current) {
+      markersGroupRef.current.clearLayers();
+
+      mapFilteredStudents.forEach(st => {
+        if (!st.lat || !st.lng) return;
+
+        const pinColor = (st.accumulatedScore || 0) >= 40 ? '#E01A59' : '#F59E0B';
+        const customPin = L.divIcon({
+          className: 'custom-leaflet-marker',
+          html: `<div style="background-color: ${pinColor}; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2.5px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.35); font-size: 11px; cursor: pointer;">${st.accumulatedScore || 0}</div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17]
+        });
+
+        const marker = L.marker([st.lat, st.lng], { icon: customPin });
+        
+        const popupContent = `
+          <div style="font-family: 'Prompt', sans-serif; min-width: 220px; padding: 6px;">
+            <div style="font-weight: 700; font-size: 14px; color: #0F172A;">${st.title} ${st.first_name} ${st.last_name}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 3px;">
+              ${st.student_id ? `รหัสนิสิต: <strong>${st.student_id}</strong>` : `<span style="color: #D97706; font-weight: 700;">(รอจัดสรรรหัสนิสิต)</span>`}
+            </div>
+            <div style="font-size: 11px; color: #475569; margin-top: 2px;">
+              เลขบัตร ปชช.: <strong>${st.citizen_id}</strong>
+            </div>
+            <div style="font-size: 11px; color: #475569; margin-top: 2px;">
+              คณะ${st.faculty_name} (${st.province})
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px solid #E2E8F0; font-size: 11px;">
+              <span>แต้มกิจกรรม: <strong style="color: #E01A59;">${st.accumulatedScore} / 40</strong></span>
+              <span>GPAX: <strong style="color: #059669;">${Number(st.gpax || 0).toFixed(2)}</strong></span>
+            </div>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+        markersGroupRef.current.addLayer(marker);
+      });
+    }
+  }, [mapFilteredStudents]);
+
+  const handleFocusStudentOnMap = (st) => {
+    if (mapInstanceRef.current && st.lat && st.lng) {
+      mapInstanceRef.current.setView([st.lat, st.lng], 9, { animate: true });
+    }
+  };
 
   const pendingApprovalCount = filteredStudents.filter(s => s.accumulatedScore >= s.requiredScore && s.scholarshipStatus !== 'APPROVED' && s.scholarshipStatus !== 'SENT_TO_FINANCE').length;
 
@@ -321,117 +442,249 @@ export default function FacultyDashboard({
             </div>
           </div>
 
-          {/* 2-Columns: Cohort/Geography & Academic Performance (Photo 1) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-            {/* Left Card: Cohort / Geography Map */}
-            <div className="card">
-              <div className="card-header">
+          {/* Interactive Leaflet GIS Map Card (พร้อมตัวกรอง ค้นหา กรองปี คณะ จังหวัด และ Sort ตามคะแนน) */}
+          <div className="card" style={{ marginBottom: '24px' }}>
+            <div className="card-header">
+              <div>
                 <div className="card-title">
-                  <MapPin size={18} color="#E01A59" />
-                  <span>Cohort / Geography (จังหวัดภูมิลำเนาผู้รับทุน)</span>
+                  <MapPin size={20} color="#E01A59" />
+                  <span>แผนที่ภูมิศาสตร์ภูมิลำเนาผู้รับทุน (Leaflet GIS Map - Lat, Lon Coordinates)</span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                  ระบบแผนที่พิกัดดาวเทียมแสดงการกระจายตัวของนิสิตทุนทั่วประเทศ รองรับการค้นหา กรองตามรุ่น/คณะ/จังหวัด และจัดลำดับตามคะแนน
                 </div>
               </div>
+              <span className="badge badge-chula" style={{ fontSize: '12px' }}>
+                แสดงผล {mapFilteredStudents.length} หมุดพิกัด
+              </span>
+            </div>
 
-              <div className="thailand-map-container">
-                {/* Thailand Choropleth Simulation */}
-                <div style={{
-                  width: '180px',
-                  height: '240px',
-                  background: 'linear-gradient(180deg, #FDF2F5 0%, #FCE7F0 100%)',
-                  borderRadius: '12px',
-                  border: '2px solid #FBCFE8',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '10px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '32px' }}>🗺️</div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#9F0837', marginTop: '6px' }}>แผนที่ประเทศไทย</div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>ความหนาแน่นผู้รับทุน</div>
-                  <div style={{ marginTop: '12px', fontSize: '10px', textAlign: 'left', width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '10px', height: '10px', background: '#9F0837', borderRadius: '2px' }} /> &gt; 10 คน
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                      <span style={{ width: '10px', height: '10px', background: '#E01A59', borderRadius: '2px' }} /> 6 - 10 คน
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                      <span style={{ width: '10px', height: '10px', background: '#F472B6', borderRadius: '2px' }} /> 1 - 5 คน
-                    </div>
-                  </div>
-                </div>
+            {/* Filter & Sort Controls for Leaflet Map */}
+            <div style={{
+              background: '#F8FAFC',
+              padding: '14px 16px',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              marginBottom: '16px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              alignItems: 'center'
+            }}>
+              {/* Search */}
+              <div style={{ flex: '1 1 200px', position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94A3B8' }} />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ, รหัสนิสิต, เลขบัตร ปชช., จังหวัด..."
+                  className="form-control"
+                  style={{ paddingLeft: '32px', fontSize: '12px' }}
+                  value={mapSearchTerm}
+                  onChange={(e) => setMapSearchTerm(e.target.value)}
+                />
+              </div>
 
-                {/* Top Provinces Table */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: '#1E293B' }}>
-                    จังหวัดที่มีนิสิตในโครงการมากที่สุด
-                  </div>
-                  <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
-                        <th style={{ textAlign: 'left', padding: '4px' }}>#</th>
-                        <th style={{ textAlign: 'left', padding: '4px' }}>จังหวัด</th>
-                        <th style={{ textAlign: 'right', padding: '4px' }}>จำนวน (คน)</th>
-                        <th style={{ textAlign: 'right', padding: '4px' }}>สัดส่วน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { rank: 1, name: 'นครราชสีมา', count: 15, pct: '12.0%' },
-                        { rank: 2, name: 'อุบลราชธานี', count: 14, pct: '11.2%' },
-                        { rank: 3, name: 'ศรีสะเกษ', count: 12, pct: '9.6%' },
-                        { rank: 4, name: 'ขอนแก่น', count: 9, pct: '7.2%' },
-                        { rank: 5, name: 'มุกดาหาร', count: 8, pct: '6.4%' },
-                        { rank: 6, name: 'เชียงราย', count: 7, pct: '5.6%' },
-                        { rank: 7, name: 'เชียงใหม่', count: 6, pct: '4.8%' },
-                      ].map(row => (
-                        <tr key={row.rank} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '6px 4px', color: '#94A3B8' }}>{row.rank}</td>
-                          <td style={{ padding: '6px 4px', fontWeight: 600 }}>{row.name}</td>
-                          <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 700 }}>{row.count}</td>
-                          <td style={{ padding: '6px 4px', textAlign: 'right', color: '#64748B' }}>{row.pct}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              {/* Filter Year / Cohort */}
+              <div style={{ flex: '0 1 150px' }}>
+                <select
+                  className="form-control"
+                  style={{ fontSize: '12px' }}
+                  value={mapFilterCohort}
+                  onChange={(e) => setMapFilterCohort(e.target.value)}
+                >
+                  <option value="all">ทุกรุ่น / ทุกปี</option>
+                  <option value="รุ่น 41">รุ่น 41 (ปี 2566)</option>
+                  <option value="รุ่น 40">รุ่น 40 (ปี 2565)</option>
+                  <option value="รุ่น 42">รุ่น 42 (ผู้สมัครใหม่)</option>
+                </select>
+              </div>
+
+              {/* Filter Faculty */}
+              <div style={{ flex: '0 1 150px' }}>
+                <select
+                  className="form-control"
+                  style={{ fontSize: '12px' }}
+                  value={mapFilterFaculty}
+                  onChange={(e) => setMapFilterFaculty(e.target.value)}
+                >
+                  <option value="all">ทุกคณะ</option>
+                  {uniqueFaculties.map(fac => (
+                    <option key={fac} value={fac}>{fac}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Province */}
+              <div style={{ flex: '0 1 140px' }}>
+                <select
+                  className="form-control"
+                  style={{ fontSize: '12px' }}
+                  value={mapFilterProvince}
+                  onChange={(e) => setMapFilterProvince(e.target.value)}
+                >
+                  <option value="all">ทุกจังหวัด</option>
+                  {uniqueProvinces.map(prov => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sort by Score / GPAX */}
+              <div style={{ flex: '0 1 190px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowUpDown size={15} color="#64748B" />
+                <select
+                  className="form-control"
+                  style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A' }}
+                  value={mapSortBy}
+                  onChange={(e) => setMapSortBy(e.target.value)}
+                >
+                  <option value="score-desc">คะแนนกิจกรรม (มาก ➔ น้อย)</option>
+                  <option value="score-asc">คะแนนกิจกรรม (น้อย ➔ มาก)</option>
+                  <option value="gpax-desc">ผลการเรียน GPAX (มาก ➔ น้อย)</option>
+                  <option value="gpax-asc">ผลการเรียน GPAX (น้อย ➔ มาก)</option>
+                </select>
               </div>
             </div>
 
-            {/* Right Card: Academic Performance / GPAX (Photo 1) */}
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">
-                  <BarChart size={18} color="#10B981" />
-                  <span>Academic Performance (ช่วง GPAX เฉลี่ยสะสม)</span>
+            {/* 2-Columns Layout: Leaflet Map (Left) + Ranked Students List (Right) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 1.8fr) minmax(280px, 1.2fr)', gap: '16px' }}>
+              {/* Map Container */}
+              <div>
+                <div 
+                  ref={mapContainerRef} 
+                  style={{ 
+                    height: '460px', 
+                    borderRadius: '12px', 
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                    zIndex: 1
+                  }} 
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', fontSize: '11px', color: '#64748B' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#E01A59', display: 'inline-block' }} />
+                      คะแนนผ่านเกณฑ์ (&gt;= 40 แต้ม)
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+                      คะแนนยังไม่ครบ (&lt; 40 แต้ม)
+                    </span>
+                  </div>
+                  <span>*ตัวเลขบนหมุดแสดงแต้มกิจกรรมสะสมของนิสิต</span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-                {[
-                  { range: '< 2.00 (กลุ่มเสี่ยง)', count: 18, pct: '14.4%', color: '#EF4444' },
-                  { range: '2.00 - 2.49', count: 35, pct: '28.0%', color: '#F59E0B' },
-                  { range: '2.50 - 2.99', count: 48, pct: '38.4%', color: '#3B82F6' },
-                  { range: '3.00 - 3.49', count: 62, pct: '49.6%', color: '#10B981' },
-                  { range: '3.50 - 4.00 (เกียรตินิยม)', count: 44, pct: '35.2%', color: '#059669' },
-                ].map(bar => (
-                  <div key={bar.range}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                      <span style={{ fontWeight: 600 }}>{bar.range}</span>
-                      <span><strong>{bar.count} คน</strong> ({bar.pct})</span>
-                    </div>
-                    <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '8px', overflow: 'hidden' }}>
-                      <div style={{ width: `${(bar.count / 70) * 100}%`, height: '100%', background: bar.color, borderRadius: '8px' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {/* Sorted Students List with Map Pan Interaction */}
+              <div style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                height: '460px',
+                overflowY: 'auto',
+                background: '#FFFFFF',
+                padding: '12px'
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>ลำดับนิสิตตามเกณฑ์ที่เลือก ({mapFilteredStudents.length})</span>
+                  <span style={{ fontSize: '11px', color: '#94A3B8' }}>คลิกเพื่อเล็งหมุดบนแผนที่</span>
+                </div>
 
-              <div style={{ marginTop: '20px', padding: '12px', background: '#ECFDF5', borderRadius: '8px', fontSize: '12px', color: '#047857' }}>
-                💡 สัดส่วนกิจกรรมเฉลี่ย: จิตอาสา 55% | วิชาการ 25% | ศูนย์จุฬาฯ-ชนบท 20% (คะแนนกิจกรรมผ่านเกณฑ์ 88.5%)
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {mapFilteredStudents.map((st, idx) => (
+                    <div 
+                      key={st.citizen_id}
+                      onClick={() => handleFocusStudentOnMap(st)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #E2E8F0',
+                        background: '#F8FAFC',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#FFF5F8'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#F8FAFC'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', width: '18px' }}>#{idx + 1}</span>
+                          <img 
+                            src={st.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop'} 
+                            alt="" 
+                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                              {st.title} {st.first_name} {st.last_name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748B' }}>
+                              {st.student_id ? st.student_id : <span style={{ color: '#D97706', fontWeight: 600 }}>รอจัดสรรรหัสนิสิต</span>} • {st.faculty_name} ({st.province})
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '11px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedStudentForModal(st);
+                          }}
+                        >
+                          โปรไฟล์
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #F1F5F9', fontSize: '11px' }}>
+                        <span>พิกัด: <code>{st.lat?.toFixed(3)}, {st.lng?.toFixed(3)}</code></span>
+                        <span>
+                          แต้มสะสม: <strong style={{ color: st.accumulatedScore >= 40 ? '#E01A59' : '#D97706' }}>{st.accumulatedScore} แต้ม</strong> | GPAX: <strong>{Number(st.gpax || 0).toFixed(2)}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {mapFilteredStudents.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '30px 10px', color: '#94A3B8', fontSize: '12px' }}>
+                      ไม่พบนิสิตตามเงื่อนไขการค้นหา
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+          </div>
+
+          {/* Academic Performance / GPAX (Photo 1) */}
+          <div className="card" style={{ marginBottom: '24px' }}>
+            <div className="card-header">
+              <div className="card-title">
+                <BarChart size={18} color="#10B981" />
+                <span>Academic Performance (ช่วง GPAX เฉลี่ยสะสม)</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+              {[
+                { range: '< 2.00 (กลุ่มเสี่ยง)', count: 18, pct: '14.4%', color: '#EF4444' },
+                { range: '2.00 - 2.49', count: 35, pct: '28.0%', color: '#F59E0B' },
+                { range: '2.50 - 2.99', count: 48, pct: '38.4%', color: '#3B82F6' },
+                { range: '3.00 - 3.49', count: 62, pct: '49.6%', color: '#10B981' },
+                { range: '3.50 - 4.00 (เกียรตินิยม)', count: 44, pct: '35.2%', color: '#059669' },
+              ].map(bar => (
+                <div key={bar.range}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
+                    <span style={{ fontWeight: 600 }}>{bar.range}</span>
+                    <span><strong>{bar.count} คน</strong> ({bar.pct})</span>
+                  </div>
+                  <div style={{ height: '14px', background: '#F1F5F9', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ width: `${(bar.count / 70) * 100}%`, height: '100%', background: bar.color, borderRadius: '8px' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '20px', padding: '12px', background: '#ECFDF5', borderRadius: '8px', fontSize: '12px', color: '#047857' }}>
+              💡 สัดส่วนกิจกรรมเฉลี่ย: จิตอาสา 55% | วิชาการ 25% | ศูนย์จุฬาฯ-ชนบท 20% (คะแนนกิจกรรมผ่านเกณฑ์ 88.5%)
             </div>
           </div>
         </div>
@@ -494,13 +747,13 @@ export default function FacultyDashboard({
                   const isApproved = student.scholarshipStatus === 'APPROVED' || student.scholarshipStatus === 'SENT_TO_FINANCE';
 
                   return (
-                    <tr key={student.student_id}>
+                    <tr key={student.citizen_id}>
                       <td style={{ fontWeight: 700 }}>
                         <span 
                           style={{ color: '#E01A59', cursor: 'pointer', textDecoration: 'underline' }}
                           onClick={() => setSelectedStudentForModal(student)}
                         >
-                          {student.student_id}
+                          {student.student_id || <span style={{ color: '#D97706', fontWeight: 600 }}>รอจัดสรร</span>}
                         </span>
                       </td>
                       <td>
@@ -767,7 +1020,7 @@ export default function FacultyDashboard({
                     </span>
                   </div>
                   <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
-                    รหัสนิสิต: <strong>{selectedStudentForModal.student_id}</strong> • รุ่น <strong>{selectedStudentForModal.cohort_no || selectedStudentForModal.cohort || '2566'}</strong> • คณะ <strong>{selectedStudentForModal.faculty_name}</strong>
+                    รหัสนิสิต: {selectedStudentForModal.student_id ? <strong>{selectedStudentForModal.student_id}</strong> : <span style={{ color: '#D97706', fontWeight: 700 }}>รอจัดสรรรหัสนิสิต (นิสิตใหม่)</span>} • เลขบัตร ปชช.: <strong>{selectedStudentForModal.citizen_id}</strong> • รุ่น <strong>{selectedStudentForModal.cohort_no || selectedStudentForModal.cohort || '2566'}</strong> • คณะ <strong>{selectedStudentForModal.faculty_name}</strong>
                   </div>
                   {selectedStudentForModal.student_status === 'พ้นสภาพ' && (
                     <div style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', background: '#FEF2F2', padding: '4px 8px', borderRadius: '4px', display: 'inline-block' }}>
@@ -943,8 +1196,8 @@ export default function FacultyDashboard({
               {studentModalTab === 'contact' && (
                 <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '16px', border: '1px solid #E2E8F0', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748B' }}>Email มหาวิทยาลัย:</span>
-                    <strong>{selectedStudentForModal.student_id}@chula.ac.th</strong>
+                    <span style={{ color: '#64748B' }}>Email ติดต่อ / มหาวิทยาลัย:</span>
+                    <strong>{selectedStudentForModal.email || (selectedStudentForModal.student_id ? `${selectedStudentForModal.student_id}@chula.ac.th` : 'รอสร้างบัญชี chula.ac.th')}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#64748B' }}>เบอร์โทรศัพท์นิสิต:</span>

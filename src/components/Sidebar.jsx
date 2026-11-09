@@ -39,10 +39,10 @@ export default function Sidebar({ currentRole, setCurrentRole, activeTab, setAct
       return [
         { id: 'officer-daily', label: 'งานที่ต้องทำวันนี้', icon: Clock, badge: '14' },
         { id: 'officer-screening', label: 'คัดกรองเอกสาร & คะแนน', icon: FileText, badge: 'ใหม่' },
-        { id: 'officer-schemes', label: 'จัดการประเภททุน (แยกปี)', icon: Award },
         { id: 'officer-calendar', label: 'ปฏิทิน & ตัดรอบ Cut-off', icon: Calendar },
-        { id: 'officer-notifications', label: 'ส่งเตือน Line OA / Email', icon: Bell },
+        { id: 'officer-notifications', label: 'ส่งแจ้งเตือน Email', icon: Bell },
         { id: 'officer-profile-verify', label: 'ตรวจสอบการแก้ Profile', icon: User, badge: '2' },
+        { id: 'officer-audit-logs', label: 'ประวัติแก้ไข (Audit Logs)', icon: ShieldCheck },
         { id: 'officer-cms', label: 'จัดการหน้าแรก (CMS)', icon: Globe },
       ];
     }

@@ -56,7 +56,11 @@ export default function App() {
   const currentStudent = students[0];
 
   const handleUpdateStudent = (updatedStudent) => {
-    setStudents(prev => prev.map(s => s.student_id === updatedStudent.student_id ? updatedStudent : s));
+    setStudents(prev => prev.map(s => {
+      const match = (updatedStudent.student_id && s.student_id === updatedStudent.student_id) || 
+                    (updatedStudent.citizen_id && s.citizen_id === updatedStudent.citizen_id);
+      return match ? updatedStudent : s;
+    }));
   };
 
   const handleSendOfficerAlert = (msg) => {
@@ -73,7 +77,8 @@ export default function App() {
   // Faculty approves a single student
   const handleApproveStudent = (studentId) => {
     setStudents(prev => prev.map(s => {
-      if (s.student_id === studentId) {
+      const match = (studentId && s.student_id === studentId);
+      if (match) {
         return {
           ...s,
           scholarshipStatus: 'APPROVED'
@@ -85,12 +90,12 @@ export default function App() {
     const alertNotice = {
       id: `NT-${Date.now()}`,
       target: 'นิสิต',
-      channel: 'LINE_OA & Email',
-      title: `ผลการพิจารณาทุน: รหัส ${studentId} ผ่านการอนุมัติแล้ว`,
+      channel: 'Email',
+      title: `ผลการพิจารณาทุน: รหัส ${studentId || 'ผู้สมัครใหม่'} ผ่านการอนุมัติแล้ว`,
       content: 'คณะกรรมการอาจารย์ได้ทำการอนุมัติทุนการศึกษาของท่านเรียบร้อยแล้ว เตรียมเข้าสู่ขั้นตอนส่งการคลัง'
     };
     setNotifications([alertNotice, ...notifications]);
-    alert(`อาจารย์ได้อนุมัติทุนการศึกษาให้นิสิต ${studentId} เรียบร้อยแล้ว! ระบบส่งเตือนผ่าน Line OA และ Email ทันที`);
+    alert(`อาจารย์ได้อนุมัติทุนการศึกษาให้นิสิต ${studentId || 'ผู้สมัครใหม่'} เรียบร้อยแล้ว! ระบบส่งเตือนผ่าน Email ทันที`);
   };
 
   // 1-Click Bulk Approval by Faculty (อนุมัติพร้อมกันทั้งหมดในคลิกเดียว)
@@ -108,7 +113,7 @@ export default function App() {
     const alertNotice = {
       id: `NT-${Date.now()}`,
       target: 'ทุกคน',
-      channel: 'LINE_OA & Email',
+      channel: 'Email',
       title: 'ประกาศผลการอนุมัติทุนการศึกษาพร้อมกันทั้งรุ่น (Bulk Approval)',
       content: 'อาจารย์ผู้อนุมัติได้ลงนามอนุมัติทุนการศึกษาให้นิสิตที่มีคะแนนกิจกรรมผ่านเกณฑ์ทั้งหมดในคลิกเดียว'
     };
@@ -254,7 +259,7 @@ export default function App() {
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '16px' }}>
                 <Bell color="#E01A59" size={20} />
-                <span>ศูนย์แจ้งเตือนระบบ (Email & Line OA)</span>
+                <span>ศูนย์แจ้งเตือนระบบ (Email Notifications)</span>
               </div>
               <button 
                 type="button" 
